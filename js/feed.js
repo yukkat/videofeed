@@ -1,5 +1,6 @@
 import { videoSources } from '../data/videos.js';
 import { ICON_MUTED } from '../utils/icons.js';
+import { initVideoObserver } from './observer.js';
 
 
 function createSlide(src) {
@@ -8,7 +9,7 @@ function createSlide(src) {
 
   const video = document.createElement('video');
   video.className = 'slide__video';
-  video.src = src;
+  video.dataset.src = src;
   video.playsInline = true;
   video.loop = true;
   video.preload = 'none';
@@ -32,4 +33,13 @@ export function renderFeed(container) {
   }
 
   container.replaceChildren(fragment);
+
+  const observer = initVideoObserver();
+
+  // Тут лучше обрабатывать остановку и запуск observer на pagehide/pageshow, но я уже не стала это реализовывать в тестовом задании
+  document.addEventListener('beforeunload', () => {
+    observer.disconnect();
+  })
 }
+
+
