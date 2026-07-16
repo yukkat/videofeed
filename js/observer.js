@@ -1,77 +1,89 @@
-export function initVideoObserver() {
-    const slides = [...document.querySelectorAll('.slide')];
+const BUFFER = 1;
 
+export function initVideoObserver(container, videoSources, populateSlide, destroySlide) {
     let activeIndex = 0;
+    const sections = new Map();
+    let rafId = null;
 
-    const observer = new IntersectionObserver(
-        (entries) => {
+    function createSection(index) {
+        if (sections.has(index)) return;
 
-            const visible = entries
-                .find((entry) => entry.isIntersecting)
+        const section = document.createElement('section');
+        section.className = 'slide';
+        section.style.top = `${index * 100}dvh`;
 
-            if (!visible) return;
+        container.appendChild(section);
+        sections.set(index, section);
+        populateSlide(section, videoSources[index]);
+    }
 
-            const newIndex = slides.indexOf(visible.target);
+    function removeSection(index) {
+        const section = sections.get(index);
+        if (!section) return;
 
-            if (newIndex === activeIndex) return;
+        destroySlide(section);
+        section.remove();
+        sections.delete(index);
+    }
 
-            activeIndex = newIndex;
-            updateVideos(activeIndex);
-        },
-        {
-            threshold: [0.75],
-        }
-    );
-
-    slides.forEach((slide) => observer.observe(slide));
-
-    // Инициализируем первый ролик
-    updateVideos(activeIndex);
-
-    return observer;
-
-    function updateVideos(currentIndex) {
-        slides.forEach((slide, index) => {
-            const video = slide.querySelector('.slide__video');
-
-            if (!video) return;
-
-            const shouldBeLoaded =
-                index >= currentIndex - 1 &&
-                index <= currentIndex + 1;
-
-            if (shouldBeLoaded) {
-                loadVideo(video);
-            } else {
-                unloadVideo(video);
+    function reconcile() {
+        for (let i = activeIndex - BUFFER; i <= activeIndex + BUFFER; i++) {
+            if (i >= 0 && i < videoSources.length) {
+                createSection(i);
             }
+        }
 
-            if (index === currentIndex) {
+        for (const [idx] of sections) {
+            if (Math.abs(idx - activeIndex) > BUFFER) {
+                removeSection(idx);
+            }
+        }
+
+        for (const [idx, section] of sections) {
+            const video = section.querySelector('.slide__video');
+
+            if (!video) continue;
+
+            if (idx === activeIndex) {
                 playVideo(video);
             } else {
                 pauseVideo(video);
             }
+        }
+    }
+
+    function onScroll() {
+        if (rafId) return;
+
+        rafId = requestAnimationFrame(() => {
+            rafId = null;
+
+            const newIndex = Math.round(container.scrollTop / container.clientHeight);
+
+            if (newIndex === activeIndex) return;
+            if (newIndex < 0 || newIndex >= videoSources.length) return;
+
+            activeIndex = newIndex;
+            reconcile();
         });
     }
 
-    function loadVideo(video) {
-        if (video.src) return;
+    container.addEventListener('scroll', onScroll, { passive: true });
 
-        video.src = video.dataset.src;
-        video.load();
-    }
+    reconcile();
 
-    function unloadVideo(video) {
-        if (!video.src) return;
-        // Паузим видео перед выгрузкой для избежания побочных эффектов
-        video.pause();
-
-        video.removeAttribute('src');
-        video.load();
-    }
+    return {
+        disconnect() {
+            container.removeEventListener('scroll', onScroll);
+            if (rafId) cancelAnimationFrame(rafId);
+        }
+    };
 
     function playVideo(video) {
-        loadVideo(video);
+        if (!video.src) {
+            video.src = video.dataset.src;
+            video.load();
+        }
 
         if (!video.paused) return;
 

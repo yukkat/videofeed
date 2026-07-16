@@ -26,6 +26,7 @@ body {
   scroll-snap-type: y mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  position: relative;
 }
 
 .feed::-webkit-scrollbar {
@@ -39,10 +40,10 @@ body {
 }
 
 .slide {
-  position: relative;
+  position: absolute;
+  left: 0;
   width: 100%;
   height: 100dvh;
-  flex-shrink: 0;
   scroll-snap-align: start;
   scroll-snap-stop: always;
   background: #000;

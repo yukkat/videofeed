@@ -3,9 +3,8 @@ import { ICON_MUTED } from '../utils/icons.js';
 import { initVideoObserver } from './observer.js';
 
 
-function createSlide(src) {
-  const slide = document.createElement('section');
-  slide.className = 'slide';
+function createSlideContent(slide, src) {
+  if (slide.querySelector('.slide__video')) return;
 
   const video = document.createElement('video');
   video.className = 'slide__video';
@@ -22,21 +21,30 @@ function createSlide(src) {
 
   slide.appendChild(video);
   slide.appendChild(muteBtn);
-  return slide;
+}
+
+function destroySlideContent(slide) {
+  const video = slide.querySelector('.slide__video');
+  const muteBtn = slide.querySelector('.slide__mute');
+
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    video.remove();
+  }
+  if (muteBtn) {
+    muteBtn.remove();
+  }
 }
 
 export function renderFeed(container) {
-  const fragment = document.createDocumentFragment();
+  const spacer = document.createElement('div');
+  spacer.style.height = `${videoSources.length * 100}dvh`;
+  container.appendChild(spacer);
 
-  for (const src of videoSources) {
-    fragment.appendChild(createSlide(src));
-  }
+  const observer = initVideoObserver(container, videoSources, createSlideContent, destroySlideContent);
 
-  container.replaceChildren(fragment);
-
-  const observer = initVideoObserver();
-
-  // Тут лучше обрабатывать остановку и запуск observer на pagehide/pageshow, но я уже не стала это реализовывать в тестовом задании
   document.addEventListener('beforeunload', () => {
     observer.disconnect();
   })
